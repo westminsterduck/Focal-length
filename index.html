@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>E-mount focal length scale</title>
+<style>
+:root{
+  --bg:#f4f2ec;--surface:#fbfaf6;--surface-2:#ebe8df;
+  --text-primary:#1b1f24;--text-secondary:#5f656d;--text-muted:#8a8f96;
+  --border:#dedacf;--border-strong:#b9b4a6;--text-danger:#b3261e;--radius:6px;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#111418;--surface:#181c21;--surface-2:#232830;--text-primary:#e9e6dd;--text-secondary:#9aa0a8;--text-muted:#757b83;--border:#2d333a;--border-strong:#454c55;--text-danger:#f2877f}
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text-primary);font:400 15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:26px;font-weight:600;margin:0 0 4px;line-height:1.2}
+.lead{margin:0 0 18px;color:var(--text-secondary)}
+input,select,button{font:inherit;font-size:14px;color:var(--text-primary);background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius);padding:6px 10px;min-height:34px}
+button{cursor:pointer}
+button:hover{background:var(--surface-2)}
+input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid #1D9E75;outline-offset:2px}
+summary{cursor:pointer}
+svg{display:block}
+svg text{font-family:inherit}
+.lr{display:grid;grid-template-columns:1fr 82px 74px;gap:8px;width:100%;text-align:left;padding:7px 10px;border:0;border-bottom:1px solid var(--border);background:transparent;font-size:14px;border-radius:0;align-items:baseline}
+.lr[aria-pressed="true"]{background:var(--surface-2);font-weight:600}
+.lr span:nth-child(n+2){color:var(--text-secondary);font-size:13px;font-variant-numeric:tabular-nums}
+.rw{display:grid;grid-template-columns:1.3fr 1fr 1fr 30px;gap:8px;padding:8px 0;border-top:1px solid var(--border);font-size:14px;align-items:baseline}
+.rw b{font-weight:600}
+.sm{font-size:13px;color:var(--text-secondary)}
+.x{padding:2px 8px}
+@media (max-width:560px){.rw{grid-template-columns:1fr 30px}.rw>span:nth-child(2),.rw>span:nth-child(3){grid-column:1}}
+</style>
+</head>
+<body>
+<main>
+<h1>E-mount focal length scale</h1>
+<p class="lead">Plot lenses on a full-frame scale and see what they become in APS-C mode on the Sony a7C II.</p>
+<div style="padding:0 0 1rem">
+<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
+<span class="sm">Kits</span>
+<button data-k="mine">Your kit: 35 f/1.8, 20-60, 85 f/1.4</button>
+<button data-k="sug">Suggested kit: 20-60, 85 f/1.8, 70-300</button>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+<input id="q" type="text" placeholder="Search lenses, e.g. 35 or Tamron" aria-label="Search lenses" style="flex:1;min-width:170px">
+<select id="fb" aria-label="Brand"><option value="">All brands</option></select>
+<select id="ft" aria-label="Type"><option value="">Primes and zooms</option><option value="p">Primes</option><option value="z">Zooms</option></select>
+<select id="fa" aria-label="Aperture"><option value="99">Any aperture</option><option value="1.4">f/1.4 or faster</option><option value="2">f/2 or faster</option><option value="2.8">f/2.8 or faster</option><option value="4">f/4 or faster</option></select>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><span class="sm" id="cnt"></span><span class="sm">Tap a lens to add or remove it</span></div>
+<div id="list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px"></div>
+<details style="margin-bottom:12px"><summary style="font-size:14px">Add a lens that isn't listed</summary>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center">
+<input id="cn" type="text" placeholder="Name (optional)" style="width:150px">
+<input id="c1" type="number" placeholder="From mm" style="width:90px">
+<input id="c2" type="number" placeholder="To mm (zoom)" style="width:110px">
+<input id="c3" type="number" step="0.1" placeholder="Max f/" style="width:80px">
+<input id="c4" type="number" step="0.1" placeholder="f/ at long end" style="width:110px">
+<select id="cs" aria-label="Coverage"><option value="F">Full frame</option><option value="C">APS-C only</option></select>
+<button id="cb">Add</button></div>
+<div id="err" class="sm" style="color:var(--text-danger);min-height:18px;margin-top:4px"></div></details>
+<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:6px">
+<label for="crop" class="sm">Crop factor</label>
+<select id="crop"><option value="1.5">1.5× Sony APS-C</option></select>
+<button id="clr">Clear all</button></div>
+<svg id="sc" viewBox="0 0 700 330" width="100%" role="img" aria-label="Focal length scale"></svg>
+<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--text-secondary);margin:6px 0 10px">
+<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#BA7517;margin-right:6px"></span>Full frame: focal length and true max aperture</span>
+<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#1D9E75;margin-right:6px"></span>APS-C mode: equivalent focal length and equivalent aperture for depth of field</span></div>
+<div id="rows"></div>
+<p class="sm" style="margin:12px 0 0">Specs compiled from public lens lists and manufacturer announcements. Check the manufacturer before buying.</p>
+</div>
+</main>
+<script>
+var DB=[
+["Sony","FE 14mm F1.8 GM",14,14,1.8,1.8,"F"],["Sony","FE 16mm F1.8 G",16,16,1.8,1.8,"F"],["Sony","FE 20mm F1.8 G",20,20,1.8,1.8,"F"],
+["Sony","FE 24mm F1.4 GM",24,24,1.4,1.4,"F"],["Sony","FE 24mm F2.8 G",24,24,2.8,2.8,"F"],["Sony","FE 35mm F1.4 GM",35,35,1.4,1.4,"F"],
+["Sony","FE 35mm F1.8",35,35,1.8,1.8,"F"],["Sony","FE 40mm F2.5 G",40,40,2.5,2.5,"F"],["Sony","FE 50mm F1.2 GM",50,50,1.2,1.2,"F"],
+["Sony","FE 50mm F1.4 GM",50,50,1.4,1.4,"F"],["Sony","FE 50mm F1.8",50,50,1.8,1.8,"F"],["Sony","FE 50mm F2.5 G",50,50,2.5,2.5,"F"],
+["Sony","FE 85mm F1.4 GM II",85,85,1.4,1.4,"F"],["Sony","FE 85mm F1.8",85,85,1.8,1.8,"F"],["Sony","FE 90mm F2.8 Macro G OSS",90,90,2.8,2.8,"F"],
+["Sony","FE 100mm F2.8 STF GM OSS",100,100,2.8,2.8,"F"],["Sony","FE 135mm F1.8 GM",135,135,1.8,1.8,"F"],["Sony","FE 300mm F2.8 GM OSS",300,300,2.8,2.8,"F"],
+["Sony","FE 400mm F2.8 GM OSS",400,400,2.8,2.8,"F"],["Sony","FE 600mm F4 GM OSS",600,600,4,4,"F"],
+["Sony","FE 8-14mm F3.5 G Fisheye",8,14,3.5,3.5,"F"],["Sony","FE 12-24mm F2.8 GM",12,24,2.8,2.8,"F"],["Sony","FE 12-24mm F4 G",12,24,4,4,"F"],
+["Sony","FE 16-25mm F2.8 G",16,25,2.8,2.8,"F"],["Sony","FE 16-35mm F2.8 GM II",16,35,2.8,2.8,"F"],["Sony","FE PZ 16-35mm F4 G",16,35,4,4,"F"],
+["Sony","FE 20-70mm F4 G",20,70,4,4,"F"],["Sony","FE 24-50mm F2.8 G",24,50,2.8,2.8,"F"],["Sony","FE 24-70mm F2.8 GM II",24,70,2.8,2.8,"F"],
+["Sony","FE 24-105mm F4 G OSS",24,105,4,4,"F"],["Sony","FE 24-240mm F3.5-6.3 OSS",24,240,3.5,6.3,"F"],["Sony","FE 28-70mm F3.5-5.6 OSS",28,70,3.5,5.6,"F"],
+["Sony","FE 50-150mm F2 GM",50,150,2,2,"F"],["Sony","FE 70-200mm F2.8 GM II",70,200,2.8,2.8,"F"],["Sony","FE 70-200mm F4 Macro G OSS II",70,200,4,4,"F"],
+["Sony","FE 70-300mm F4.5-5.6 G OSS",70,300,4.5,5.6,"F"],["Sony","FE 100-400mm F4.5-5.6 GM OSS",100,400,4.5,5.6,"F"],
+["Sony","FE 200-600mm F5.6-6.3 G OSS",200,600,5.6,6.3,"F"],["Sony","FE 400-800mm F6.3-8 G OSS",400,800,6.3,8,"F"],
+["Sony APS-C","E 11mm F1.8",11,11,1.8,1.8,"C"],["Sony APS-C","E 15mm F1.4 G",15,15,1.4,1.4,"C"],["Sony APS-C","E 24mm F1.8 ZA",24,24,1.8,1.8,"C"],
+["Sony APS-C","E 35mm F1.8 OSS",35,35,1.8,1.8,"C"],["Sony APS-C","E 50mm F1.8 OSS",50,50,1.8,1.8,"C"],["Sony APS-C","E PZ 10-20mm F4 G",10,20,4,4,"C"],
+["Sony APS-C","E 16-55mm F2.8 G",16,55,2.8,2.8,"C"],["Sony APS-C","E PZ 18-105mm F4 G OSS",18,105,4,4,"C"],["Sony APS-C","E 18-135mm F3.5-5.6 OSS",18,135,3.5,5.6,"C"],
+["Sony APS-C","E 70-350mm F4.5-6.3 G OSS",70,350,4.5,6.3,"C"],
+["Tamron","20mm F2.8 Di III OSD",20,20,2.8,2.8,"F"],["Tamron","24mm F2.8 Di III OSD",24,24,2.8,2.8,"F"],["Tamron","35mm F2.8 Di III OSD",35,35,2.8,2.8,"F"],
+["Tamron","17-28mm F2.8 Di III RXD",17,28,2.8,2.8,"F"],["Tamron","17-50mm F4 Di III VXD",17,50,4,4,"F"],["Tamron","20-40mm F2.8 Di III VXD",20,40,2.8,2.8,"F"],
+["Tamron","28-75mm F2.8 Di III VXD G2",28,75,2.8,2.8,"F"],["Tamron","35-150mm F2-2.8 Di III VXD",35,150,2,2.8,"F"],["Tamron","28-200mm F2.8-5.6 Di III RXD",28,200,2.8,5.6,"F"],
+["Tamron","28-300mm F4-7.1 Di III VC VXD",28,300,4,7.1,"F"],["Tamron","70-180mm F2.8 Di III VC VXD G2",70,180,2.8,2.8,"F"],["Tamron","70-300mm F4.5-6.3 Di III RXD",70,300,4.5,6.3,"F"],
+["Tamron","50-400mm F4.5-6.3 Di III VC VXD",50,400,4.5,6.3,"F"],["Tamron","150-500mm F5-6.7 Di III VC VXD",150,500,5,6.7,"F"],
+["Sigma","14mm F1.4 DG DN Art",14,14,1.4,1.4,"F"],["Sigma","20mm F2 DG DN Contemporary",20,20,2,2,"F"],["Sigma","24mm F1.4 DG DN Art",24,24,1.4,1.4,"F"],
+["Sigma","24mm F2 DG DN Contemporary",24,24,2,2,"F"],["Sigma","35mm F1.4 DG DN Art",35,35,1.4,1.4,"F"],["Sigma","35mm F2 DG DN Contemporary",35,35,2,2,"F"],
+["Sigma","50mm F1.4 DG DN Art",50,50,1.4,1.4,"F"],["Sigma","65mm F2 DG DN Contemporary",65,65,2,2,"F"],["Sigma","85mm F1.4 DG DN Art",85,85,1.4,1.4,"F"],
+["Sigma","90mm F2.8 DG DN Contemporary",90,90,2.8,2.8,"F"],["Sigma","105mm F2.8 DG DN Macro Art",105,105,2.8,2.8,"F"],
+["Sigma","16-28mm F2.8 DG DN Contemporary",16,28,2.8,2.8,"F"],["Sigma","20-60mm F2.8-4 DG Contemporary",20,60,2.8,4,"F"],["Sigma","24-70mm F2.8 DG DN Art",24,70,2.8,2.8,"F"],["Sigma","28-70mm F2.8 DG DN Contemporary",28,70,2.8,2.8,"F"],
+["Sigma","20-200mm F3.5-6.3 DG Contemporary",20,200,3.5,6.3,"F"],["Sigma","70-200mm F2.8 DG DN OS Sports",70,200,2.8,2.8,"F"],
+["Sigma","100-400mm F5-6.3 DG DN OS Contemporary",100,400,5,6.3,"F"],["Sigma","150-600mm F5-6.3 DG DN OS Sports",150,600,5,6.3,"F"],["Sigma","60-600mm F4.5-6.3 DG DN OS Sports",60,600,4.5,6.3,"F"],
+["Sigma APS-C","16mm F1.4 DC DN Contemporary",16,16,1.4,1.4,"C"],["Sigma APS-C","30mm F1.4 DC DN Contemporary",30,30,1.4,1.4,"C"],
+["Sigma APS-C","56mm F1.4 DC DN Contemporary",56,56,1.4,1.4,"C"],["Sigma APS-C","18-50mm F2.8 DC DN Contemporary",18,50,2.8,2.8,"C"],
+["Viltrox","AF 16mm F1.8 FE",16,16,1.8,1.8,"F"],["Viltrox","AF 85mm F1.8 II FE",85,85,1.8,1.8,"F"],
+["Samyang","AF 35mm F1.8 FE",35,35,1.8,1.8,"F"],["Samyang","AF 75mm F1.8 FE",75,75,1.8,1.8,"F"]];
+var KITS={mine:["FE 35mm F1.8","20-60mm F2.8-4 DG Contemporary","85mm F1.4 DG DN Art"],sug:["20-60mm F2.8-4 DG Contemporary","FE 85mm F1.8","70-300mm F4.5-6.3 Di III RXD"]};
+function kit(k){return KITS[k].map(function(n){for(var i=0;i<DB.length;i++)if(DB[i][1]===n)return i})}
+var sel=kit("mine"),crop=1.5;
+var MIN=8,MAX=1200,VW=700,X0=24,W=636,HB=18,LH=34;
+var Z=[[8,24,"Ultra-wide"],[24,35,"Wide"],[35,70,"Standard"],[70,135,"Portrait"],[135,300,"Telephoto"],[300,1200,"Super-tele"]];
+var T=[8,14,20,24,35,50,70,85,135,200,300,400,600,1000];
+var FC="#BA7517",AC="#1D9E75";
+function X(f){f=Math.min(f,MAX);return X0+(Math.log(f)-Math.log(MIN))/(Math.log(MAX)-Math.log(MIN))*W}
+function fov(f){return Math.round(2*Math.atan(43.27/(2*f))*180/Math.PI*10)/10}
+function r1(n){return Math.round(n*10)/10}
+function apt(a,b,m){return "f/"+(a===b?r1(a*m):r1(a*m)+"–"+r1(b*m))}
+function fl(d){return d[2]===d[3]?d[2]+"mm":d[2]+"–"+d[3]+"mm"}
+function assign(ex){
+  var ord=ex.map(function(e,i){return i}).sort(function(a,b){return ex[a][0]-ex[b][0]}),last=[],res=[];
+  ord.forEach(function(i){var k=0;while(k<last.length&&last[k]>ex[i][0]-6)k++;last[k]=ex[i][1];res[i]=k});
+  return {l:res,n:last.length};
+}
+function cl(c,w){return Math.max(w/2+4,Math.min(VW-w/2-4,c))}
+function lw(big,small,sz){return big.length*sz*0.56+small.length*6.5+6}
+function mk(x,y,big,small,sz,col){return '<text x="'+x+'" y="'+y+'" text-anchor="middle" fill="'+col+'"><tspan font-size="'+sz+'" font-weight="600">'+big+'</tspan><tspan font-size="12" dx="4">'+small+'</tspan></text>'}
+function init(){var b={};DB.forEach(function(d){b[d[0]]=1});var h='<option value="">All brands</option>';Object.keys(b).forEach(function(k){h+='<option>'+k+'</option>'});document.getElementById("fb").innerHTML=h}
+function list(){
+  var q=document.getElementById("q").value.toLowerCase().trim(),fb=document.getElementById("fb").value,ft=document.getElementById("ft").value,fa=+document.getElementById("fa").value,idx=[];
+  DB.forEach(function(d,i){
+    if(fb&&d[0]!==fb)return;if(ft==="p"&&d[2]!==d[3])return;if(ft==="z"&&d[2]===d[3])return;if(d[4]>fa)return;
+    if(q&&(d[0]+" "+d[1]).toLowerCase().indexOf(q)<0)return;idx.push(i)});
+  idx.sort(function(a,b){return DB[a][2]-DB[b][2]||DB[a][3]-DB[b][3]||DB[a][4]-DB[b][4]});
+  var h="";idx.forEach(function(i){var d=DB[i];
+    h+='<button class="lr" data-i="'+i+'" aria-pressed="'+(sel.indexOf(i)>=0)+'"><span>'+d[0]+' '+d[1]+'</span><span>'+fl(d)+'</span><span>'+apt(d[4],d[5],1)+'</span></button>'});
+  document.getElementById("list").innerHTML=h||'<p class="sm" style="padding:10px;margin:0">No lenses match. Try loosening the filters.</p>';
+  document.getElementById("cnt").textContent=idx.length+" lenses shown";
+}
+function draw(){
+  var items=sel.map(function(i){var d=DB[i];return {i:i,d:d,lo:d[2],hi:d[3],aw:d[4],at:d[5],z:d[2]!==d[3],c:d[6]==="C"}}).sort(function(a,b){return a.lo-b.lo||a.hi-b.hi});
+  var fi=items.filter(function(t){return !t.c});
+  function ext(t,m,big,small,sz){
+    var x1=X(t.lo*m),x2=X(t.hi*m),cx=(x1+x2)/2,w=lw(big,small,sz);
+    if(!t.z){var c=cl(x1,w);return [c-w/2-4,c+w/2+4]}
+    var c2=cl(cx,w);return [Math.min(x1,c2-w/2-4),Math.max(x2,c2+w/2+4)];
+  }
+  function tl(t){return [t.z?t.lo+"–"+t.hi:""+t.lo,apt(t.aw,t.at,1),t.z?14:17]}
+  function bl(t){return [t.z?Math.round(t.lo*crop)+"–"+Math.round(t.hi*crop):""+Math.round(t.lo*crop),apt(t.aw,t.at,crop),t.z?14:17]}
+  var top=assign(fi.map(function(t){var l=tl(t);return ext(t,1,l[0],l[1],l[2])}));
+  var bot=assign(items.map(function(t){var l=bl(t);return ext(t,crop,l[0],l[1],l[2])}));
+  var LT=Math.max(top.n,1),LB=Math.max(bot.n,1),ay=34+LT*LH+8,H=ay+HB+LB*LH+40,o=[];
+  Z.forEach(function(z,i){var a=X(z[0]),b=X(z[1]);
+    o.push('<rect x="'+a+'" y="'+(ay-HB)+'" width="'+(b-a)+'" height="'+(HB*2)+'" fill="var(--text-primary)" fill-opacity="'+(i%2?0.04:0.09)+'"/>');
+    o.push('<text x="'+((a+b)/2)+'" y="'+(ay-4)+'" text-anchor="middle" font-size="11" fill="var(--text-secondary)">'+z[2]+'</text>')});
+  T.forEach(function(t){o.push('<line x1="'+X(t)+'" x2="'+X(t)+'" y1="'+(ay+2)+'" y2="'+(ay+HB)+'" stroke="var(--border-strong)"/>');
+    o.push('<text x="'+(X(t)+2)+'" y="'+(ay+14)+'" font-size="11" fill="var(--text-muted)">'+t+'</text>')});
+  o.push('<text x="'+X0+'" y="14" font-size="12" fill="var(--text-secondary)">Full frame</text>');
+  o.push('<text x="'+X0+'" y="'+(H-8)+'" font-size="12" fill="var(--text-secondary)">APS-C mode (equivalent)</text>');
+  items.forEach(function(t,k){
+    var fa=X(t.lo),fb=X(t.hi),aa=X(t.lo*crop),ab=X(t.hi*crop),yd=ay+HB+30+bot.l[k]*LH,bl_=bl(t),w2=lw(bl_[0],bl_[1],bl_[2]);
+    if(!t.c){
+      var fk=fi.indexOf(t),yu=ay-HB-20-top.l[fk]*LH,tl_=tl(t),w1=lw(tl_[0],tl_[1],tl_[2]);
+      o.push('<line x1="'+fa+'" y1="'+(ay-HB)+'" x2="'+aa+'" y2="'+(ay+HB)+'" stroke="var(--text-muted)" stroke-dasharray="3 3"/>');
+      if(!t.z){
+        o.push('<line x1="'+fa+'" y1="'+(ay-HB)+'" x2="'+fa+'" y2="'+(yu+5)+'" stroke="'+FC+'" stroke-width="1.5"/><circle cx="'+fa+'" cy="'+(ay-HB)+'" r="4" fill="'+FC+'"/>');
+        o.push(mk(cl(fa,w1),yu,tl_[0],tl_[1],17,FC));
+      }else{
+        o.push('<rect x="'+fa+'" y="'+(yu+2)+'" width="'+(fb-fa)+'" height="'+(ay-HB-yu-2)+'" fill="'+FC+'" fill-opacity="0.09"/>');
+        o.push('<line x1="'+fa+'" y1="'+(ay-HB)+'" x2="'+fa+'" y2="'+yu+'" stroke="'+FC+'"/><line x1="'+fb+'" y1="'+(ay-HB)+'" x2="'+fb+'" y2="'+yu+'" stroke="'+FC+'"/>');
+        o.push('<rect x="'+fa+'" y="'+(yu-2)+'" width="'+(fb-fa)+'" height="5" rx="2" fill="'+FC+'"/>');
+        o.push(mk(cl((fa+fb)/2,w1),yu-7,tl_[0],tl_[1],14,FC));
+      }
+    }
+    if(!t.z){
+      o.push('<line x1="'+aa+'" y1="'+(ay+HB)+'" x2="'+aa+'" y2="'+(yd-15)+'" stroke="'+AC+'" stroke-width="1.5"/><circle cx="'+aa+'" cy="'+(ay+HB)+'" r="4" fill="'+AC+'"/>');
+      o.push(mk(cl(aa,w2),yd,bl_[0],bl_[1],17,AC));
+    }else{
+      o.push('<rect x="'+aa+'" y="'+(ay+HB)+'" width="'+(ab-aa)+'" height="'+(yd-17-(ay+HB))+'" fill="'+AC+'" fill-opacity="0.09"/>');
+      o.push('<line x1="'+aa+'" y1="'+(ay+HB)+'" x2="'+aa+'" y2="'+(yd-17)+'" stroke="'+AC+'"/><line x1="'+ab+'" y1="'+(ay+HB)+'" x2="'+ab+'" y2="'+(yd-17)+'" stroke="'+AC+'"/>');
+      o.push('<rect x="'+aa+'" y="'+(yd-19)+'" width="'+(ab-aa)+'" height="5" rx="2" fill="'+AC+'"/>');
+      o.push(mk(cl((aa+ab)/2,w2),yd-1,bl_[0],bl_[1],14,AC));
+    }
+  });
+  var sv=document.getElementById("sc");sv.setAttribute("viewBox","0 0 "+VW+" "+H);
+  sv.innerHTML='<title>Focal length scale</title><desc>Selected lenses plotted on a logarithmic focal length scale, full-frame above and APS-C equivalents below</desc>'+o.join("");
+  var r="";
+  items.forEach(function(t){var d=t.d,ea=t.lo*crop,eb=t.hi*crop;
+    r+='<div class="rw"><span><b>'+d[0]+' '+d[1]+'</b>'+(t.c?'<br><span class="sm">APS-C only, auto-crops on a7C II</span>':'')+'</span>'
+      +'<span>'+(t.z?fl(d)+'<br><span class="sm">'+r1(t.hi/t.lo)+'× zoom, '+fov(t.lo)+'–'+fov(t.hi)+'°</span>':d[2]+'mm<br><span class="sm">'+fov(t.lo)+'° view</span>')+'</span>'
+      +'<span>'+apt(t.aw,t.at,1)+'<br><span class="sm">APS-C mode: '+r1(ea)+(t.z?'–'+r1(eb):'')+'mm, DoF-equiv. '+apt(t.aw,t.at,crop)+'</span></span>'
+      +'<button class="x" data-x="'+t.i+'" aria-label="Remove '+d[1]+'">×</button></div>'});
+  document.getElementById("rows").innerHTML=r||'<p class="sm" style="margin:0">Nothing selected. Tap a lens in the list above.</p>';
+}
+function all(){list();draw()}
+["q","fb","ft","fa"].forEach(function(id){document.getElementById(id).addEventListener(id==="q"?"input":"change",list)});
+document.getElementById("list").onclick=function(e){var b=e.target.closest("button");if(!b)return;var i=+b.dataset.i,k=sel.indexOf(i);if(k>=0)sel.splice(k,1);else sel.push(i);all()};
+document.getElementById("rows").onclick=function(e){var b=e.target.closest("button");if(!b)return;sel.splice(sel.indexOf(+b.dataset.x),1);all()};
+document.getElementById("clr").onclick=function(){sel=[];all()};
+document.querySelectorAll("button[data-k]").forEach(function(b){b.onclick=function(){sel=kit(b.dataset.k);all()}});
+document.getElementById("cb").onclick=function(){
+  var n=document.getElementById("cn").value.trim(),a=Math.round(+document.getElementById("c1").value),b=Math.round(+document.getElementById("c2").value)||a,
+  f1=+document.getElementById("c3").value,f2=+document.getElementById("c4").value||f1,s=document.getElementById("cs").value,er=document.getElementById("err");
+  if(!a||a<8||b>1000||b<a){er.textContent="Enter a valid focal length (8 to 1000mm) and make the long end at least the short end.";return}
+  if(!f1||f1<0.7||f2<f1){er.textContent="Enter a max aperture, and the long-end aperture must not be wider than the short end.";return}
+  er.textContent="";DB.push(["Custom",n||(a===b?a+"mm f/"+f1:a+"-"+b+"mm f/"+f1),a,b,f1,f2,s]);sel.push(DB.length-1);
+  ["cn","c1","c2","c3","c4"].forEach(function(id){document.getElementById(id).value=""});all()};
+init();all();
+</script>
+</body>
+</html>
